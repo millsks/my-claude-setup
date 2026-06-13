@@ -18,5 +18,10 @@
         ]
       }
     ]
-  }
+  },
+  "voice": {
+    "enabled": true,
+    "mode": "tap"
+  },
+  "voiceEnabled": true
 }

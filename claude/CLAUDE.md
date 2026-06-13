@@ -254,6 +254,16 @@ triage-*.md
 
 ### pixi.toml
 
+**Always scaffold with `pixi init` — never write `pixi.toml` by hand.** The current pixi spec uses `[workspace]`; hand-written files default to the old `[project]` table and will fail.
+
+```sh
+pixi init <project-dir>
+```
+
+Do not use `pixi init --pyproject` — that embeds pixi config into `pyproject.toml`. Keep pixi settings (dependencies, features, tasks) in `pixi.toml` only; `pyproject.toml` is for Python tool configuration (pytest, ruff, mypy, git-cliff).
+
+Then edit the generated `pixi.toml` to add:
+
 - Runtime deps in `[dependencies]` (conda-forge)
 - Dev tooling in `[feature.dev.dependencies]`
 - Package as editable install in `[pypi-dependencies]`
