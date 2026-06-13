@@ -36,7 +36,10 @@ sync_dir() {
 echo "Syncing ~/.claude → claude/"
 sync_file "CLAUDE.md"
 sync_file "settings.json"
+sync_file "keybindings.json"
 sync_dir "commands"
+sync_dir "memory"
+sync_dir "skills"
 
 echo ""
 echo "Done. Review with: git diff"

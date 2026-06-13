@@ -49,7 +49,10 @@ apply_dir() {
 echo "Applying claude/ → ~/.claude"
 apply_file "CLAUDE.md"
 apply_file "settings.json"
+apply_file "keybindings.json"
 apply_dir "commands"
+apply_dir "memory"
+apply_dir "skills"
 
 echo ""
 echo "Done. Backup saved to ${BACKUP_DIR}"
