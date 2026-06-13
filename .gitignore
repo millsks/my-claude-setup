@@ -1,0 +1,35 @@
+# Pixi — ignore runtime env but keep project config
+.pixi/
+!.pixi/config.toml
+
+# macOS
+.DS_Store
+
+# Backup files produced by sync-out
+*.bak
+*~
+
+# Sensitive / machine-local Claude settings — never commit
+claude/settings.local.json
+
+# Claude runtime directories — not meant to be versioned
+claude/backups/
+claude/cache/
+claude/daemon*
+claude/debug/
+claude/downloads/
+claude/file-history/
+claude/history.jsonl
+claude/ide/
+claude/jobs/
+claude/mcp-needs-auth-cache.json
+claude/plans/
+claude/plugins/
+claude/projects/
+claude/session-env/
+claude/sessions/
+claude/shell-snapshots/
+claude/stats-cache.json
+claude/statsig/
+claude/todos/
+claude/.last-cleanup
