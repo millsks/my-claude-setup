@@ -14,5 +14,5 @@ bootstrap   = { cmd = "pre-commit install --hook-type commit-msg && pre-commit i
 sync-in     = { cmd = "bash scripts/sync_in.sh", description = "Pull config from ~/.claude into claude/" }
 sync-out    = { cmd = "bash scripts/sync_out.sh", description = "Apply claude/ to ~/.claude with backup" }
 diff        = { cmd = "bash scripts/diff.sh", description = "Preview diff between repo and ~/.claude" }
-changelog   = { cmd = "git-cliff -o CHANGELOG.md", description = "Regenerate CHANGELOG.md" }
+changelog   = { cmd = "git-cliff --tag \"$(date +%Y-%m-%d)\" -o CHANGELOG.md", description = "Regenerate CHANGELOG.md" }
 ci          = { cmd = "pre-commit run --all-files", description = "Validate all tracked files" }
