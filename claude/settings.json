@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(pixi run *)",
+      "Bash(pixi info *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f pixi.toml ] && pixi run ci || true"
+          }
+        ]
+      }
+    ]
+  }
+}
