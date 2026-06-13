@@ -62,6 +62,7 @@ Every code change — new feature, bug fix, hotfix, refactor — must include a 
 - Mark every integration test: `@pytest.mark.integration`
 - Use `tmp_path` for filesystem, real DB instances for database code, `respx` for HTTP interception — do not mock infrastructure
 - Mirror the `src/<package>/` structure: `tests/integration/test_<module>.py`
+- Each test must leave resources in the state it found them — use setup/teardown fixtures or DB transactions that roll back on completion; tests that leave state behind cause non-deterministic failures in subsequent runs
 
 Both test types count toward the 90% coverage threshold enforced by `pixi run cov`.
 
@@ -88,7 +89,7 @@ Every project defines these tasks (names are the standard):
 | `cov` | `pytest tests/ --cov=src --cov-report=term-missing --cov-fail-under=90` — full suite, coverage gate |
 | `build` | Build the package distribution |
 | `changelog` | `git cliff -o CHANGELOG.md` |
-| `ci` | Full validation sequence (via `depends-on`): pre-commit → build → cov → check → lint |
+| `ci` | Full validation sequence (via `depends-on`): pre-commit → build → check → lint → cov |
 | `act` | `act --container-architecture linux/amd64` (local CI via nektos/act) |
 
 The `ci` task is the harness entry point — it must exit 0 before any task is considered done.
@@ -126,24 +127,53 @@ The `ci` task is the harness entry point — it must exit 0 before any task is c
 
 ## 6. The Change Harness
 
-After any set of changes, `pixi run ci` must pass before the task is done. A `Stop` hook enforces this automatically. The loop logic below applies when the hook signals failure.
+The harness ensures every change leaves the repository valid: formatted, typed, linted, tested, and buildable. It operates at two levels — a fast inner loop during active development, and a full CI gate before every commit.
 
-**`pixi run ci` sequence:**
-1. `pre-commit run --all-files` — runs ruff format, ruff lint (with auto-fix), and mypy via hooks (conventional-commit validation runs separately at commit-msg stage)
-2. `pixi run build`
-3. `pixi run cov` — full suite (unit + integration), coverage ≥90% required
-4. `pixi run check` — mypy, zero errors
-5. `pixi run lint` — ruff, zero errors
+### Stop hook
 
-**Loop rules:**
-1. On failure: diagnose, apply fix, re-run `pixi run ci` from step 1
-2. Track the exact error signature each iteration
-3. If the **same error appears 10 consecutive times**: STOP, generate triage report (see §11), wait for human review
+A Claude Code session hook configured in `.claude/settings.json` automatically runs `pixi run ci` when a task completes. It blocks the session from marking any task done until the gate exits 0. This is not optional — never disable, bypass, or work around it. If the hook is not present in a project's settings, add it before starting work.
 
-**Do not:**
-- Skip steps because the change "looks safe"
-- Mark a task done until `pixi run ci` exits 0
-- Run steps out of order
+### Branch discipline
+
+Before writing any code, confirm the working branch is `feature/`, `bugfix/`, or `hotfix/`. The harness validates code quality but does not enforce branch discipline — work committed on `main` can pass every gate and still violate §5. Check the branch first; switch if needed.
+
+### Inner loop (during active development)
+
+Run these frequently while writing code — do not wait until the end to discover failures:
+
+1. `pixi run test` — run unit tests after every meaningful change; each should complete in milliseconds
+2. `pixi run fmt` — auto-format before staging; avoids pre-commit auto-fix surprises at gate time
+3. `pixi run lint && pixi run check` — surface ruff and mypy issues before they accumulate
+4. `pixi run test-integration` — run when touching code that crosses a resource boundary (DB, HTTP, filesystem)
+
+The inner loop is not a substitute for the CI gate. It is preparation for it. Never skip directly to `pixi run ci` as the first validation of a session.
+
+### CI gate (before every commit)
+
+`pixi run ci` is the final validation before staging and committing. The sequence is ordered fast-fail first — static checks run before the full test suite so type and lint errors surface without paying the cost of running tests:
+
+1. `pre-commit run --all-files` — ruff format (auto-fix), ruff lint (auto-fix), and mypy across all changed files; conventional-commit validation runs separately at the commit-msg stage
+2. `pixi run build` — verify the package is distributable; catches import errors and packaging mistakes
+3. `pixi run check` — mypy across the full `src/` tree using the strict pyproject.toml config
+4. `pixi run lint` — ruff across all files, zero warnings or errors
+5. `pixi run cov` — full test suite (unit + integration), coverage ≥90% required
+
+**Why mypy runs twice:** step 1 runs mypy incrementally per changed file via the pre-commit hook environment; step 3 runs mypy against the complete module graph in the full pixi environment with strict pyproject.toml settings. Both must pass — they catch different failure modes.
+
+### Loop rules
+
+When `pixi run ci` fails:
+
+1. Read the full error output — identify the exact failing step and error message before touching any code
+2. Record the error signature: step number + first line of the error message; confirm it changes with each iteration
+3. **Pre-commit auto-fix trap:** if step 1 modifies files (ruff format or `--fix` auto-corrected code), those changes are unstaged — re-stage the modified files before re-running or the next run will fail identically against the original staged content
+4. Apply one focused fix, then re-run `pixi run ci` from step 1 — never skip steps, never run steps out of order
+5. If the error signature is unchanged after a fix, the fix had no effect — diagnose before retrying
+6. If the **same error signature appears 10 consecutive times**: STOP, generate a triage report (see §11), and wait for human review — do not attempt an 11th fix
+
+### Done condition
+
+A task is complete when and only when `pixi run ci` exits 0 — all five steps pass with zero errors and zero warnings. No partial credit. No exceptions.
 
 ---
 
