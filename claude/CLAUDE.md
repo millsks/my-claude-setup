@@ -9,8 +9,8 @@ Project-specific CLAUDE.md files cover architecture, commands, and off-limits ar
 
 | Tool | Role |
 |---|---|
-| **Pixi** | Package manager and task runner — never use `pip install` directly |
-| **Python 3.13** | Dev version; CI matrix tests 3.12, 3.13, 3.14-dev |
+| **Pixi** | Package manager and task runner — the **only** way to run Python; never use `pip install` directly |
+| **Python 3.14** | Default for all new projects; CI matrix tests 3.12, 3.13, 3.14 |
 | **pytest + pytest-cov** | Testing (≥90% coverage required, enforced by `--cov-fail-under=90`) |
 | **mypy** | Type checking (`strict = true`) |
 | **ruff** | Linting and formatting |
@@ -19,6 +19,23 @@ Project-specific CLAUDE.md files cover architecture, commands, and off-limits ar
 | **git-cliff** | CHANGELOG generation (`pixi run changelog`) |
 
 Package preference: **conda-forge first**. Use `[pypi-dependencies]` only for packages absent from conda-forge.
+
+### Pixi is the only runner
+
+Every Python script, command, module, and REPL invocation goes through pixi. There are no exceptions and no "just this once" cases.
+
+| Never | Always |
+|---|---|
+| `uv run script.py` | `pixi run python script.py` |
+| `uvx tool` | add the tool to `pixi.toml`, then `pixi run tool` |
+| `python script.py` | `pixi run python script.py` |
+| `python -m module` | `pixi run python -m module` |
+| `pip install X` / `uv pip install X` | `pixi add X` (conda-forge first) |
+| `pytest` / `mypy` / `ruff` bare | `pixi run test` / `pixi run check` / `pixi run lint` |
+
+This applies to **third-party instructions too**. Skills, plugins, READMEs, and vendored docs frequently hardcode `uv run <path>` — BMad's `_bmad/scripts/*.py` are a recurring example. Translate the command to its `pixi run python` equivalent before executing it; do not follow the literal text.
+
+**Why:** `uv run` provisions its own `.venv/` and writes a `uv.lock`, creating a second environment that competes with the pixi-managed one and silently drifts from `pixi.lock`. One project, one environment, one runner.
 
 ---
 
@@ -175,6 +192,25 @@ When `pixi run ci` fails:
 
 A task is complete when and only when `pixi run ci` exits 0 — all five steps pass with zero errors and zero warnings. No partial credit. No exceptions.
 
+### Issue delivery loop (the standard guardrail)
+
+When working an issue, carry it all the way from branch to cleanup. An issue is done only when its PR is merged, local `main` is synced, and stale branches are gone — not when `pixi run ci` passes locally.
+
+1. Sync `main` (`git checkout main && git pull --ff-only`), then branch off it per §5 naming
+2. Implement the change with tests (§3), running the inner loop as you go
+3. `pixi run ci` until it exits 0 (loop rules above apply)
+4. Commit (Conventional Commits) and push
+5. Open a PR stating what changed and what was verified
+6. Monitor every PR check to completion (`gh pr checks <n> --watch`); fix any failure, push, and watch again until all are green
+7. Merge once every check is green (`gh pr merge <n> --admin --delete-branch` when the approval gate blocks a maintainer's own PR, per §7)
+8. Sync local `main` with the merged changes (`git checkout main && git pull --ff-only`)
+9. Clean up: `git fetch --prune`, delete the merged local branch and any `[gone]` branches
+10. Only then start the next issue
+
+**Queued issues:** when a sequence of issues has been agreed, run this loop for each in order without stopping to ask between steps or between issues. Never start the next issue while the current one has an open PR, a red check, or an unsynced `main`.
+
+**Still stop and ask** for anything §7 lists, cutting a release, or a design choice the issue does not already settle. If a step fails and cannot be fixed, report it plainly rather than working around it or skipping ahead.
+
 ---
 
 ## 7. Control Constraints
@@ -190,6 +226,7 @@ A task is complete when and only when `pixi run ci` exits 0 — all five steps p
 **Never:**
 - Commit `.env` files, API keys, tokens, or credentials
 - Use `--no-verify` on any git command
+- Propose weakening a branch protection rule or ruleset because a merge came back blocked. A required-approval gate the maintainer cannot satisfy on their own PR still works exactly as intended for external contributors — it only looks pointless from inside a maintainer's own PR. Use the sanctioned bypass (`gh pr merge --admin`) and move on.
 
 ---
 
@@ -279,7 +316,11 @@ tls-root-certs = "system"   # use the OS system certificate store for TLS
 
 ### pyproject.toml
 
-Tool configuration only — no runtime deps. Must include:
+Tool configuration only — no runtime deps.
+
+**Python version policy:** new projects target **3.14** — that is what `pixi.toml` pins for the dev environment and what `requires-python = ">=3.12"` floors against. The CI matrix stays 3.12, 3.13, 3.14 so the supported range is genuinely tested; `[tool.mypy] python_version` tracks the *floor* (3.12), not the dev version, so 3.13-only and 3.14-only APIs get caught before they reach a 3.12 runner.
+
+Must include:
 
 ```toml
 [tool.pytest.ini_options]
@@ -304,7 +345,7 @@ convention = "google"
 known-first-party = ["<package_name>"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.12"   # the matrix FLOOR, not the dev version — catches 3.13+/3.14-only API use
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -373,11 +414,10 @@ jobs:
   unit:
     name: Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.python-version == '3.14-dev' }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14-dev"]
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v4
@@ -393,11 +433,10 @@ jobs:
   full:
     name: Full CI (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.python-version == '3.14-dev' }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13", "3.14-dev"]
+        python-version: ["3.12", "3.13", "3.14"]
     # Add a services: block here for projects that need Postgres, Redis, etc.
     # Example:
     #   services:

@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(git add *)",
-      "Bash(git commit -m ' *)",
+      "Bash(git commit -m *)",
       "Bash(pixi run *)",
       "Bash(pixi info *)",
       "Bash(gh pr *)"
@@ -14,7 +14,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -f pixi.toml ] && pixi run ci || true"
+            "command": "[ -f pixi.toml ] && ! jq -e '.hooks.Stop' .claude/settings.json >/dev/null 2>&1 && pixi run ci || true",
+            "timeout": 1800
           }
         ]
       }
@@ -25,11 +26,13 @@
     "hookify@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
     "pr-review-toolkit@claude-plugins-official": true,
-    "feature-dev@claude-plugins-official": true
+    "feature-dev@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
   },
+  "tui": "fullscreen",
   "voice": {
     "enabled": true,
     "mode": "tap"
   },
-  "voiceEnabled": true
+  "agentPushNotifEnabled": true
 }
