@@ -38,27 +38,27 @@ commit_preprocessors = [
   #{ pattern = '\\((\\w+\\s)?#([0-9]+)\\)', replace = "([#${2}](https://github.com/millsks/my-claude-setup/issues/${2}))" },
 ]
 commit_parsers = [
-  { message = "^feat", group = "⭐ Features" },
-  { message = "^fix", group = "🐛 Bug Fixes" },
-  { message = "^doc", group = "📚 Documentation" },
-  { message = "^perf", group = "⚡ Performance" },
-  { message = "^refactor", group = "🚜 Refactor" },
-  { message = "^style", group = "🎨 Styling" },
-  { message = "^test", group = "🧪 Testing" },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^doc", group = "Documentation" },
+  { message = "^perf", group = "Performance" },
+  { message = "^refactor", group = "Refactor" },
+  { message = "^style", group = "Styling" },
+  { message = "^test", group = "Testing" },
   { message = "^chore\\(release\\): prepare for", skip = true },
   { message = "^chore\\(changelog\\)", skip = true },
   { message = "^chore\\(deps.*\\)", skip = true },
   { message = "^chore\\(pr\\)", skip = true },
   { message = "^chore\\(pull\\)", skip = true },
-  { message = "^build", group = "📦 Build" },
-  { message = "^chore|^ci", group = "⚙️ Miscellaneous Tasks" },
-  { body = ".*security", group = "🔒 Security" },
-  { message = "^revert", group = "◀️ Revert" },
+  { message = "^build", group = "Build" },
+  { message = "^chore|^ci", group = "Miscellaneous Tasks" },
+  { body = ".*security", group = "Security" },
+  { message = "^revert", group = "Revert" },
   { message = "^Merge branch", skip = true },
   { message = "^Release v", skip = true },
 ]
 protect_breaking_commits = false
 filter_commits = false
-tag_pattern = "v[0-9].*"
+tag_pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}"
 topo_order = false
 sort_commits = "oldest"
