@@ -12,3 +12,10 @@ repos:
       - id: check-merge-conflict
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: local
+    hooks:
+      - id: detect-secrets
+        name: detect-secrets
+        language: system
+        entry: pixi run detect-secrets-hook --baseline .secrets.baseline
+        exclude: ^pixi\.lock$

@@ -27,7 +27,14 @@ apply_file() {
     local src="${SOURCE_DIR}/${name}"
     local dst="${CLAUDE_DIR}/${name}"
     if [[ -f "${src}" ]]; then
-        if [[ -f "${dst}" ]]; then cp "${dst}" "${BACKUP_DIR}/${name}"; fi
+        if [[ -f "${dst}" ]]; then
+            cp "${dst}" "${BACKUP_DIR}/${name}"
+            if [[ "${name}" == "settings.json" ]]; then
+                merged_settings "${src}" "${BACKUP_DIR}/${name}" >"${dst}"
+                echo "  applied: ${name} (kept local keys)"
+                return
+            fi
+        fi
         cp "${src}" "${dst}"
         echo "  applied: ${name}"
     fi
