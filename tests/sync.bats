@@ -78,3 +78,44 @@ setup() {
     run bash "${SCRIPTS}/sync_out.sh" <<<"y"
     [ "${status}" -eq 1 ]
 }
+
+@test "sync-in strips machine-local settings keys" {
+    echo '{"permissions": {}, "env": {"TOKEN": "x"}, "autoMode": {}, "skipDangerousModePermissionPrompt": true}' \
+        >"${CLAUDE_SETUP_LIVE_DIR}/settings.json"
+    bash "${SCRIPTS}/sync_in.sh"
+    run jq -c 'keys' "${CLAUDE_SETUP_REPO_DIR}/settings.json"
+    [ "${output}" = '["permissions"]' ]
+}
+
+@test "diff ignores machine-local settings keys" {
+    bash "${SCRIPTS}/sync_in.sh"
+    echo '{"permissions": {}, "env": {"TOKEN": "x"}}' >"${CLAUDE_SETUP_LIVE_DIR}/settings.json"
+    run bash "${SCRIPTS}/diff.sh"
+    [[ "${output}" == *"unchanged: settings.json"* ]]
+}
+
+@test "sync-out keeps live machine-local settings keys" {
+    echo '{"permissions": {}, "env": {"TOKEN": "x"}}' >"${CLAUDE_SETUP_LIVE_DIR}/settings.json"
+    bash "${SCRIPTS}/sync_in.sh"
+    echo '{"permissions": {"allow": ["a"]}}' >"${CLAUDE_SETUP_REPO_DIR}/settings.json"
+    bash "${SCRIPTS}/sync_out.sh" <<<"y"
+    run jq -c '.' "${CLAUDE_SETUP_LIVE_DIR}/settings.json"
+    [ "${output}" = '{"permissions":{"allow":["a"]},"env":{"TOKEN":"x"}}' ]
+}
+
+@test "diff --check exits 0 when in sync" {
+    bash "${SCRIPTS}/sync_in.sh"
+    run bash "${SCRIPTS}/diff.sh" --check
+    [ "${status}" -eq 0 ]
+    [ -z "${output}" ]
+}
+
+@test "diff --check exits 1 and names drifted paths" {
+    bash "${SCRIPTS}/sync_in.sh"
+    echo "# changed" >"${CLAUDE_SETUP_LIVE_DIR}/CLAUDE.md"
+    echo "b" >"${CLAUDE_SETUP_LIVE_DIR}/memory/b.md"
+    run bash "${SCRIPTS}/diff.sh" --check
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"drift: CLAUDE.md"* ]]
+    [[ "${output}" == *"drift: memory/"* ]]
+}

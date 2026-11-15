@@ -12,7 +12,7 @@ sync_file() {
     local src="${CLAUDE_DIR}/${name}"
     local dst="${SOURCE_DIR}/${name}"
     if [[ -f "${src}" ]]; then
-        cp "${src}" "${dst}"
+        live_view "${name}" >"${dst}"
         echo "  synced: ${name}"
     else
         echo "  skipped (not found): ${name}"
