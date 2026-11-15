@@ -8,6 +8,10 @@ platforms = ["osx-arm64", "osx-64", "linux-64"]
 [dependencies]
 git-cliff = ">=2"
 pre-commit = ">=4"
+shellcheck = ">=0.11.0,<0.12"
+go-shfmt = ">=3.14.1,<4"
+bats-core = ">=1.14.0,<2"
+jq = ">=1.8.2,<2"
 
 [tasks]
 bootstrap   = { cmd = "pre-commit install --hook-type commit-msg && pre-commit install", description = "Install pre-commit hooks" }
@@ -15,4 +19,8 @@ sync-in     = { cmd = "bash scripts/sync_in.sh", description = "Pull config from
 sync-out    = { cmd = "bash scripts/sync_out.sh", description = "Apply claude/ to ~/.claude with backup" }
 diff        = { cmd = "bash scripts/diff.sh", description = "Preview diff between repo and ~/.claude" }
 changelog   = { cmd = "git-cliff --tag \"$(date +%Y-%m-%d)\" -o CHANGELOG.md", description = "Regenerate CHANGELOG.md" }
-ci          = { cmd = "pre-commit run --all-files", description = "Validate all tracked files" }
+fmt         = { cmd = "shfmt -i 4 -w scripts tests/*.bats", description = "Format shell scripts" }
+lint        = { cmd = "shellcheck -x scripts/*.sh && shfmt -i 4 -d scripts tests/*.bats", description = "Lint and format-check shell scripts" }
+test        = { cmd = "bats tests/", description = "Run sync script tests" }
+precommit   = { cmd = "pre-commit run --all-files", description = "Run all pre-commit hooks" }
+ci          = { depends-on = ["precommit", "lint", "test"], description = "Full validation: pre-commit, lint, tests" }

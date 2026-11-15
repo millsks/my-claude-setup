@@ -2,9 +2,8 @@
 # Apply versioned config from claude/ to ~/.claude with a timestamped backup.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLAUDE_DIR="${HOME}/.claude"
-SOURCE_DIR="${REPO_DIR}/claude"
+# shellcheck source=scripts/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if [[ ! -d "${SOURCE_DIR}" ]] || [[ -z "$(ls -A "${SOURCE_DIR}" 2>/dev/null)" ]]; then
     echo "No tracked files in claude/. Run 'pixi run sync-in' first." >&2
@@ -14,18 +13,21 @@ fi
 bash "${REPO_DIR}/scripts/diff.sh"
 
 read -r -p "Apply these changes to ${CLAUDE_DIR}? [y/N] " confirm
-[[ "${confirm}" == [yY] ]] || { echo "Aborted."; exit 0; }
+[[ "${confirm}" == [yY] ]] || {
+    echo "Aborted."
+    exit 0
+}
 
 BACKUP_DIR="${HOME}/.claude-config-backup-$(date +%Y%m%d-%H%M%S)"
 echo "Backing up current config to ${BACKUP_DIR}"
-mkdir -p "${BACKUP_DIR}"
+mkdir -p "${BACKUP_DIR}" "${CLAUDE_DIR}"
 
 apply_file() {
     local name="$1"
     local src="${SOURCE_DIR}/${name}"
     local dst="${CLAUDE_DIR}/${name}"
     if [[ -f "${src}" ]]; then
-        [[ -f "${dst}" ]] && cp "${dst}" "${BACKUP_DIR}/${name}"
+        if [[ -f "${dst}" ]]; then cp "${dst}" "${BACKUP_DIR}/${name}"; fi
         cp "${src}" "${dst}"
         echo "  applied: ${name}"
     fi
@@ -46,13 +48,9 @@ apply_dir() {
     fi
 }
 
-echo "Applying claude/ → ~/.claude"
-apply_file "CLAUDE.md"
-apply_file "settings.json"
-apply_file "keybindings.json"
-apply_dir "commands"
-apply_dir "memory"
-apply_dir "skills"
+echo "Applying ${SOURCE_DIR} -> ${CLAUDE_DIR}"
+for name in "${TRACKED_FILES[@]}"; do apply_file "${name}"; done
+for name in "${TRACKED_DIRS[@]}"; do apply_dir "${name}"; done
 
 echo ""
 echo "Done. Backup saved to ${BACKUP_DIR}"

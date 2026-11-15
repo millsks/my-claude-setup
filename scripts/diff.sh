@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Show differences between versioned claude/ and the live ~/.claude config.
-# Outputs in unified diff format: - = in repo, + = in live.
+# Covers every path sync-out applies. Unified diff format: - = in repo, + = in live.
 set -euo pipefail
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLAUDE_DIR="${HOME}/.claude"
-SOURCE_DIR="${REPO_DIR}/claude"
+# shellcheck source=scripts/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 diff_file() {
     local name="$1"
@@ -13,7 +12,7 @@ diff_file() {
     local live_file="${CLAUDE_DIR}/${name}"
 
     if [[ -f "${repo_file}" && -f "${live_file}" ]]; then
-        if diff -q "${repo_file}" "${live_file}" > /dev/null 2>&1; then
+        if diff -q "${repo_file}" "${live_file}" >/dev/null 2>&1; then
             echo "  unchanged: ${name}"
         else
             echo ""
@@ -22,9 +21,9 @@ diff_file() {
             diff -u "${repo_file}" "${live_file}" | tail -n +3 || true
         fi
     elif [[ -f "${repo_file}" ]]; then
-        echo "  repo only (not in live): ${name}"
+        echo "  repo only (sync-out will create): ${name}"
     elif [[ -f "${live_file}" ]]; then
-        echo "  live only (not in repo): ${name}"
+        echo "  live only (not tracked yet): ${name}"
     fi
 }
 
@@ -40,17 +39,17 @@ diff_dir() {
             echo "  unchanged: ${name}/"
         else
             echo "  changed: ${name}/"
-            echo "${result}" | sed 's/^/    /'
+            # Files only in live will be DELETED by sync-out (rsync --delete); call that out.
+            echo "${result}" | sed -e "s|^Only in ${live_dir}.*: \(.*\)|DELETED by sync-out: ${name}/\1|" -e 's/^/    /'
         fi
     elif [[ -d "${repo_dir}" ]]; then
-        echo "  repo only (not in live): ${name}/"
+        echo "  repo only (sync-out will create): ${name}/"
     elif [[ -d "${live_dir}" ]]; then
-        echo "  live only (not in repo): ${name}/"
+        echo "  live only (not tracked yet): ${name}/"
     fi
 }
 
 echo "=== repo/claude vs ~/.claude ==="
-diff_file "CLAUDE.md"
-diff_file "settings.json"
-diff_dir "commands"
+for name in "${TRACKED_FILES[@]}"; do diff_file "${name}"; done
+for name in "${TRACKED_DIRS[@]}"; do diff_dir "${name}"; done
 echo ""
